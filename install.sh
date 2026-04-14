@@ -62,12 +62,28 @@ esac
 # Optional: Claude Code integration
 # -----------------------------------------------------------------
 
-printf '\nInstall Claude Code integration (statusline hook for the bubble)? [Y/n] '
-read answer
-case "$answer" in
-  n|N|no|NO) INSTALL_CLAUDE=0 ;;
-  *) INSTALL_CLAUDE=1 ;;
-esac
+# Decide whether to install Claude Code hooks.
+#   1. GITMON_INSTALL_HOOKS env var wins (y/n explicit).
+#   2. If running interactively (TTY on stdin), prompt the user.
+#   3. Otherwise (curl | sh, Claude Code bash, CI), default to YES so
+#      the bubble works out of the box.
+if [ -n "${GITMON_INSTALL_HOOKS:-}" ]; then
+  case "$GITMON_INSTALL_HOOKS" in
+    n|N|no|NO|0) INSTALL_CLAUDE=0 ;;
+    *)           INSTALL_CLAUDE=1 ;;
+  esac
+elif [ -t 0 ]; then
+  printf '\nInstall Claude Code integration (statusline hook for the bubble)? [Y/n] '
+  answer=""
+  read answer || answer=""
+  case "$answer" in
+    n|N|no|NO) INSTALL_CLAUDE=0 ;;
+    *)         INSTALL_CLAUDE=1 ;;
+  esac
+else
+  printf '\nInstalling Claude Code integration (default for non-interactive run)...\n'
+  INSTALL_CLAUDE=1
+fi
 
 if [ "$INSTALL_CLAUDE" = "1" ]; then
   mkdir -p "$CLAUDE_HOOKS_DIR"
