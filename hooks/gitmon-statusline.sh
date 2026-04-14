@@ -124,10 +124,11 @@ fi
 # Line 1 = top, Line 2 = eyes/body (anchor for vitals), Line 3 = bottom
 case "$species" in
   ghost|*ghost*|neon_phantom|phantom)
-    # Non-breaking space (U+00A0) before head — Claude Code strips
-    # leading ASCII spaces in the statusline, so we use NBSP to force
-    # a 1-col indent that survives the renderer.
-    s1=$'\xc2\xa0.-.'
+    # All three lines are 5 chars wide so they align flush at column 1
+    # regardless of how Claude Code's statusline trims leading whitespace.
+    # `_.-._` keeps the canonical .-. ghost head with underscore wisps
+    # on each side that visually match the body's 5-char width.
+    s1="_.-._"
     s2="${EC}${eyes}${R}"
     s3="| O |"
     ;;
