@@ -124,7 +124,7 @@ fi
 # Line 1 = top, Line 2 = eyes/body (anchor for vitals), Line 3 = bottom
 case "$species" in
   ghost|*ghost*|neon_phantom|phantom)
-    s1="  (.-.)"
+    s1="   .-."
     s2="  ${EC}${eyes}${R}"
     s3="  | O |"
     ;;
