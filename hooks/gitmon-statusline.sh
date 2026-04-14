@@ -136,7 +136,7 @@ case "$species" in
   owl|noctua)
     s1="   ,_,"
     s2="  ${EC}${eyes}${R}"
-    s3=" -\"--\"-"
+    s3="  -\"^\"-"
     ;;
   wolf|wolfbyte)
     s1="  /\\_/\\"
@@ -144,7 +144,7 @@ case "$species" in
     s3=" \\  ~  /"
     ;;
   phoenix|ph03nix)
-    s1="   ,  ,"
+    s1="  , ^ ,"
     s2="  ${EC}${eyes}${R}"
     s3=" / /|\\ \\"
     ;;
