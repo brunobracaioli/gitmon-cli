@@ -130,7 +130,7 @@ case "$species" in
     ;;
   dragon|drakodev)
     s1="   /\\_/\\"
-    s2="  ${EC}${eyes}${R}"
+    s2="   ${EC}${eyes}${R}"
     s3="  / > ^ \\"
     ;;
   owl|noctua)
@@ -140,7 +140,7 @@ case "$species" in
     ;;
   wolf|wolfbyte)
     s1="  /\\_/\\"
-    s2=" ${EC}${eyes}${R}"
+    s2="  ${EC}${eyes}${R}"
     s3=" \\  ~  /"
     ;;
   phoenix|ph03nix)
@@ -150,17 +150,17 @@ case "$species" in
     ;;
   robot|byteborg)
     s1="  [=====]"
-    s2="  ${EC}${eyes}${R}"
+    s2="   ${EC}${eyes}${R}"
     s3="  |[___]|"
     ;;
   cat|kittybug)
     s1="   /\\_/\\"
-    s2="  ${EC}${eyes}${R}"
+    s2="   ${EC}${eyes}${R}"
     s3="   > ^ <"
     ;;
   red_hacker|blue_hacker|yellow_hacker|devsecops_hacker|crypto_hacker|game_hacker|golden_hacker)
     s1="   .---."
-    s2="  ${EC}${eyes}${R}"
+    s2="   ${EC}${eyes}${R}"
     s3="   '---'"
     ;;
   *)
@@ -170,7 +170,7 @@ case "$species" in
       s3="    \\_/"
     else
       s1="   .---."
-      s2="  ${EC}${eyes}${R}"
+      s2="   ${EC}${eyes}${R}"
       s3="   '---'"
     fi
     ;;
