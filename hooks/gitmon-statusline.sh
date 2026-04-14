@@ -55,10 +55,11 @@ elif [ "$status" = "egg" ] || [ "$status" = "hatching" ]; then eyes="(~~~)"
 elif [ "$is_hacker" = "true" ]; then eyes="(X X)"
 else
   case "$species" in
-    owl)    if [ $frame -lt 2 ]; then eyes="{o,o}"; else eyes="{-,-}"; fi ;;
-    dragon) if [ $frame -lt 2 ]; then eyes="(o.o)"; else eyes="(^.^)"; fi ;;
-    cat)    if [ $frame -lt 2 ]; then eyes="(o.o)"; else eyes="(-.-)"; fi ;;
-    *)      if [ $frame -lt 2 ]; then eyes="(o o)"; else eyes="(- -)"; fi ;;
+    owl)            if [ $frame -lt 2 ]; then eyes="{o,o}"; else eyes="{-,-}"; fi ;;
+    dragon)         if [ $frame -lt 2 ]; then eyes="(o.o)"; else eyes="(^.^)"; fi ;;
+    cat)            if [ $frame -lt 2 ]; then eyes="(o.o)"; else eyes="(-.-)"; fi ;;
+    robot|byteborg) if [ $frame -lt 2 ]; then eyes="< o o >"; else eyes="< - - >"; fi ;;
+    *)              if [ $frame -lt 2 ]; then eyes="(o o)"; else eyes="(- -)"; fi ;;
   esac
 fi
 
@@ -132,50 +133,54 @@ case "$species" in
     s2="${EC}${eyes}${R}"
     s3="| O |"
     ;;
+  # Every sprite is exactly 5 visible chars per line so all three lines
+  # align flush at column 1 — Claude Code's statusline strips leading
+  # ASCII spaces (and NBSP) so positional centering is impossible.
+  # Only robot is 7 chars wide (large bulky frame).
   dragon|drakodev)
-    s1="   /\\_/\\"
-    s2="   ${EC}${eyes}${R}"
-    s3="  / > ^ \\"
+    s1="/\\_/\\"
+    s2="${EC}${eyes}${R}"
+    s3="/^_^\\"
     ;;
   owl|noctua)
-    s1="   ,_,"
-    s2="  ${EC}${eyes}${R}"
-    s3="  -\"^\"-"
+    s1="~,_,~"
+    s2="${EC}${eyes}${R}"
+    s3="-\"^\"-"
     ;;
   wolf|wolfbyte)
-    s1="  /\\_/\\"
-    s2="  ${EC}${eyes}${R}"
-    s3=" \\  ~  /"
+    s1="/\\_/\\"
+    s2="${EC}${eyes}${R}"
+    s3="\\_~_/"
     ;;
   phoenix|ph03nix)
-    s1="  , ^ ,"
-    s2="  ${EC}${eyes}${R}"
-    s3=" / /|\\ \\"
+    s1=", ^ ,"
+    s2="${EC}${eyes}${R}"
+    s3="/|=|\\"
     ;;
   robot|byteborg)
-    s1="  [=====]"
-    s2="   ${EC}${eyes}${R}"
-    s3="  |[___]|"
+    s1="[=====]"
+    s2="${EC}${eyes}${R}"
+    s3="|[___]|"
     ;;
   cat|kittybug)
-    s1="   /\\_/\\"
-    s2="   ${EC}${eyes}${R}"
-    s3="   > ^ <"
+    s1="/\\_/\\"
+    s2="${EC}${eyes}${R}"
+    s3="> ^ <"
     ;;
   red_hacker|blue_hacker|yellow_hacker|devsecops_hacker|crypto_hacker|game_hacker|golden_hacker)
-    s1="   .---."
-    s2="   ${EC}${eyes}${R}"
-    s3="   '---'"
+    s1=".---."
+    s2="${EC}${eyes}${R}"
+    s3="'---'"
     ;;
   *)
     if [ "$status" = "egg" ] || [ "$status" = "hatching" ]; then
-      s1="    ___"
-      s2="   ${EC}/~~~\\${R}"
-      s3="    \\_/"
+      s1="(___)"
+      s2="${EC}/~~~\\${R}"
+      s3="\\___/"
     else
-      s1="   .---."
-      s2="   ${EC}${eyes}${R}"
-      s3="   '---'"
+      s1=".---."
+      s2="${EC}${eyes}${R}"
+      s3="'---'"
     fi
     ;;
 esac
