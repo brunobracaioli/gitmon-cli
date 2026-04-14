@@ -24,6 +24,20 @@ CONFIG_DIR="${GITMON_CONFIG_DIR:-$HOME/.config/gitmon}"
 TOKEN_FILE="$CONFIG_DIR/token"
 SPEECH_FILE="${GITMON_SPEECH_FILE:-$HOME/.gitmon-speech.txt}"
 
+# Refuse plaintext transport for the Bearer token. https:// is required;
+# http://localhost and http://127.0.0.1 are allowed only so local dev
+# against `next dev` still works. Anything else (http://evil.example.com
+# from a poisoned env, a typo, etc.) exits before the first request so
+# the token never leaves the process over cleartext.
+case "$API_BASE" in
+  https://*) ;;
+  http://localhost|http://localhost:*|http://127.0.0.1|http://127.0.0.1:*) ;;
+  *)
+    printf 'gitmon: GITMON_API_BASE must use https:// (got "%s"). Refusing to send Bearer token over plaintext.\n' "$API_BASE" >&2
+    exit 1
+    ;;
+esac
+
 # -----------------------------------------------------------------
 # Dep check
 # -----------------------------------------------------------------

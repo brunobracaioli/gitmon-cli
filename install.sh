@@ -11,6 +11,19 @@
 set -eu
 
 REPO_RAW="${GITMON_CLI_REPO:-https://raw.githubusercontent.com/brunobracaioli/gitmon-cli/main}"
+
+# The installer fetches an executable and writes it to $PATH. Require https://
+# so a poisoned env can't redirect to a plaintext (or attacker-controlled)
+# mirror. http://localhost is allowed for local-tree testing only.
+case "$REPO_RAW" in
+  https://*) ;;
+  http://localhost|http://localhost:*|http://127.0.0.1|http://127.0.0.1:*) ;;
+  *)
+    printf 'install: GITMON_CLI_REPO must use https:// (got "%s"). Refusing to install binary from plaintext source.\n' "$REPO_RAW" >&2
+    exit 1
+    ;;
+esac
+
 BIN_URL="$REPO_RAW/bin/gitmon"
 HOOKS_BASE="$REPO_RAW/hooks"
 SKILL_URL="$REPO_RAW/claude-skill/gitmon/SKILL.md"
