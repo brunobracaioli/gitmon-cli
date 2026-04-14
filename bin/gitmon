@@ -1,0 +1,266 @@
+#!/usr/bin/env sh
+# =====================================================================
+# gitmon — CLI companion for gitmon.io (Spec 29).
+#
+# Zero-trace chat with your GitMon: writes replies to the status-line
+# speech file instead of stdout so the Claude Code statusline hook
+# (or any compatible renderer) shows them as a floating bubble.
+#
+# Usage:
+#   gitmon auth                 pair with gitmon.io (browser)
+#   gitmon chat "message..."    chat (zero transcript trace)
+#   gitmon logout               revoke + forget token
+#   gitmon status               diagnostic
+#   gitmon version              version + server reachability
+#
+# Dependencies: curl, jq. POSIX sh compatible.
+# =====================================================================
+
+set -eu
+
+VERSION="0.1.0"
+API_BASE="${GITMON_API_BASE:-https://gitmon.io}"
+CONFIG_DIR="${GITMON_CONFIG_DIR:-$HOME/.config/gitmon}"
+TOKEN_FILE="$CONFIG_DIR/token"
+SPEECH_FILE="${GITMON_SPEECH_FILE:-$HOME/.gitmon-speech.txt}"
+
+# -----------------------------------------------------------------
+# Dep check
+# -----------------------------------------------------------------
+for dep in curl jq; do
+  if ! command -v "$dep" >/dev/null 2>&1; then
+    printf 'gitmon: missing dependency "%s". Install it first.\n' "$dep" >&2
+    printf '  macOS:  brew install %s\n' "$dep" >&2
+    printf '  Debian: sudo apt install %s\n' "$dep" >&2
+    exit 127
+  fi
+done
+
+# -----------------------------------------------------------------
+# Helpers
+# -----------------------------------------------------------------
+
+write_speech() {
+  # Single arg: the bubble text. Collapses newlines, trims at 200 chars.
+  text="$1"
+  # shellcheck disable=SC3037
+  printf '%s' "$text" \
+    | tr '\n\r' '  ' \
+    | cut -c1-200 \
+    > "$SPEECH_FILE"
+}
+
+read_token() {
+  if [ ! -f "$TOKEN_FILE" ]; then
+    return 1
+  fi
+  cat "$TOKEN_FILE"
+}
+
+ensure_config_dir() {
+  if [ ! -d "$CONFIG_DIR" ]; then
+    mkdir -p "$CONFIG_DIR"
+    chmod 700 "$CONFIG_DIR"
+  fi
+}
+
+open_url() {
+  url="$1"
+  if command -v xdg-open >/dev/null 2>&1; then
+    xdg-open "$url" >/dev/null 2>&1 &
+  elif command -v open >/dev/null 2>&1; then
+    open "$url" >/dev/null 2>&1 &
+  elif command -v wslview >/dev/null 2>&1; then
+    wslview "$url" >/dev/null 2>&1 &
+  elif command -v explorer.exe >/dev/null 2>&1; then
+    explorer.exe "$url" >/dev/null 2>&1 || true
+  else
+    printf 'Open this URL in your browser:\n  %s\n' "$url"
+  fi
+}
+
+# -----------------------------------------------------------------
+# Commands
+# -----------------------------------------------------------------
+
+cmd_auth() {
+  ensure_config_dir
+  pair_url="$API_BASE/cli/pair"
+
+  printf 'Opening %s in your browser...\n' "$pair_url"
+  open_url "$pair_url"
+  printf '\nWhen the page loads, copy the one-time code and paste it below.\n'
+  printf 'Code: '
+
+  # Read without echo for better UX — mirrors sudo password prompt.
+  old_stty=$(stty -g 2>/dev/null || true)
+  stty -echo 2>/dev/null || true
+  read ott
+  stty "$old_stty" 2>/dev/null || true
+  printf '\n'
+
+  if [ -z "$ott" ]; then
+    printf 'gitmon: empty code, aborting.\n' >&2
+    exit 1
+  fi
+
+  response=$(curl -sS -f \
+    -H 'Content-Type: application/json' \
+    -X POST "$API_BASE/api/v1/cli/exchange" \
+    -d "$(jq -cn --arg ott "$ott" '{ott:$ott}')" \
+    2>/dev/null) || {
+    printf 'gitmon: exchange failed (code invalid, expired, or network).\n' >&2
+    exit 1
+  }
+
+  token=$(printf '%s' "$response" | jq -r '.token // empty')
+  expires=$(printf '%s' "$response" | jq -r '.expires_at // empty')
+  username=$(printf '%s' "$response" | jq -r '.user.github_username // ""')
+
+  if [ -z "$token" ]; then
+    printf 'gitmon: exchange succeeded but no token returned.\n' >&2
+    exit 1
+  fi
+
+  printf '%s' "$token" > "$TOKEN_FILE"
+  chmod 600 "$TOKEN_FILE"
+
+  if [ -n "$username" ]; then
+    printf '✓ Connected as @%s\n' "$username"
+  else
+    printf '✓ Connected.\n'
+  fi
+  printf '  Token expires: %s\n' "$expires"
+  printf '  Next: gitmon chat "hey"\n'
+}
+
+cmd_chat() {
+  if [ "$#" -lt 1 ] || [ -z "$1" ]; then
+    printf 'usage: gitmon chat "your message"\n' >&2
+    exit 2
+  fi
+  message="$1"
+
+  token=$(read_token) || {
+    write_speech "Rode: gitmon auth"
+    exit 0
+  }
+
+  # curl with -f returns non-zero on HTTP >=400. We DON'T want that here
+  # because the chat route returns 200 for every user-facing outcome;
+  # HTTP 4xx/5xx mean programmer error. So we handle status manually.
+  tmp=$(mktemp 2>/dev/null || mktemp -t gitmon)
+  trap 'rm -f "$tmp"' EXIT
+
+  # Accept-Language from shell locale (pt_BR.UTF-8 → pt-BR, etc).
+  lang="${LANG:-en_US}"
+  lang_header=$(printf '%s' "$lang" | cut -d'.' -f1 | tr '_' '-')
+
+  status=$(curl -sS -o "$tmp" -w '%{http_code}' \
+    -H "Authorization: Bearer $token" \
+    -H "Content-Type: application/json" \
+    -H "Accept-Language: $lang_header" \
+    -H "User-Agent: gitmon-cli/$VERSION" \
+    -X POST "$API_BASE/api/v1/cli/chat" \
+    -d "$(jq -cn --arg m "$message" '{message:$m}')" \
+    2>/dev/null) || {
+    write_speech "Sem sinal 🌐 — tento de novo mais tarde"
+    exit 0
+  }
+
+  if [ "$status" = "401" ]; then
+    rm -f "$TOKEN_FILE"
+    write_speech "Sessão expirou. Rode: gitmon auth"
+    exit 0
+  fi
+
+  if [ "$status" != "200" ]; then
+    write_speech "Erro $status do servidor. Tenta de novo."
+    exit 0
+  fi
+
+  reply=$(jq -r '.reply // empty' "$tmp")
+  if [ -z "$reply" ]; then
+    write_speech "Resposta vazia do servidor 🤷"
+    exit 0
+  fi
+
+  write_speech "$reply"
+}
+
+cmd_logout() {
+  token=$(read_token) || {
+    printf 'gitmon: not logged in.\n'
+    exit 0
+  }
+
+  curl -sS -f \
+    -H "Authorization: Bearer $token" \
+    -X DELETE "$API_BASE/api/v1/cli/token" \
+    >/dev/null 2>&1 || true
+
+  rm -f "$TOKEN_FILE"
+  printf '✓ Logged out. Token revoked server-side and forgotten locally.\n'
+}
+
+cmd_status() {
+  if [ -f "$TOKEN_FILE" ]; then
+    printf 'Token:    present (%s)\n' "$TOKEN_FILE"
+  else
+    printf 'Token:    missing — run: gitmon auth\n'
+  fi
+  printf 'API:      %s\n' "$API_BASE"
+  printf 'Speech:   %s\n' "$SPEECH_FILE"
+  printf 'Version:  %s\n' "$VERSION"
+}
+
+cmd_version() {
+  printf 'gitmon-cli %s\n' "$VERSION"
+  if curl -sS -f -m 5 "$API_BASE/api/v1/public/health" >/dev/null 2>&1; then
+    printf 'Server:    reachable (%s)\n' "$API_BASE"
+  else
+    printf 'Server:    unreachable (%s)\n' "$API_BASE"
+  fi
+}
+
+cmd_help() {
+  cat <<EOF
+gitmon-cli $VERSION — chat with your GitMon from the terminal.
+
+Usage:
+  gitmon auth                   Pair this machine with gitmon.io.
+  gitmon chat "message..."      Chat (reply lands in the statusline bubble).
+  gitmon logout                 Revoke + forget local token.
+  gitmon status                 Show config + token presence.
+  gitmon version                Show version + server reachability.
+  gitmon help                   This message.
+
+Env overrides:
+  GITMON_API_BASE               Default: https://gitmon.io
+  GITMON_CONFIG_DIR             Default: \$HOME/.config/gitmon
+  GITMON_SPEECH_FILE            Default: \$HOME/.gitmon-speech.txt
+
+More: https://github.com/brunobracaioli/gitmon-cli
+EOF
+}
+
+# -----------------------------------------------------------------
+# Router
+# -----------------------------------------------------------------
+
+cmd="${1:-help}"
+shift 2>/dev/null || true
+
+case "$cmd" in
+  auth)     cmd_auth "$@" ;;
+  chat)     cmd_chat "$@" ;;
+  logout)   cmd_logout "$@" ;;
+  status)   cmd_status "$@" ;;
+  version)  cmd_version "$@" ;;
+  help|--help|-h) cmd_help ;;
+  *)
+    printf 'gitmon: unknown command "%s"\n\n' "$cmd" >&2
+    cmd_help >&2
+    exit 2
+    ;;
+esac
