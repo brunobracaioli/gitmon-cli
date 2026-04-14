@@ -124,9 +124,12 @@ fi
 # Line 1 = top, Line 2 = eyes/body (anchor for vitals), Line 3 = bottom
 case "$species" in
   ghost|*ghost*|neon_phantom|phantom)
-    s1="   .-."
-    s2="  ${EC}${eyes}${R}"
-    s3="  | O |"
+    # Non-breaking space (U+00A0) before head — Claude Code strips
+    # leading ASCII spaces in the statusline, so we use NBSP to force
+    # a 1-col indent that survives the renderer.
+    s1=$'\xc2\xa0.-.'
+    s2="${EC}${eyes}${R}"
+    s3="| O |"
     ;;
   dragon|drakodev)
     s1="   /\\_/\\"
